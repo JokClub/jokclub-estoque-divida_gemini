@@ -3,10 +3,25 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Painel Orçamentário & Financeiro — Dívida Pública</title>
+<title>Painel de Controle Orçamentário &amp; Financeiro — REL ORC_FINANCEIRO</title>
 
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23FFFFFF' stroke='%23E5E7EB' stroke-width='2'/%3E%3Cg fill='%23B4873A'%3E%3Crect x='6' y='18' width='3.5' height='8' rx='1'/%3E%3Crect x='11.5' y='13' width='3.5' height='13' rx='1'/%3E%3Crect x='17' y='9' width='3.5' height='17' rx='1'/%3E%3Crect x='22.5' y='15' width='3.5' height='11' rx='1'/%3E%3C/g%3E%3C/svg%3E" />
+<script>
+    /* aplica o tema antes da 1ª pintura (sem piscar) */
+    (function(){ try{
+      var t = localStorage.getItem('painel-tema');
+      if(!t){ t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'escuro' : 'claro'; }
+      if(t === 'escuro') document.documentElement.classList.add('dark');
+    }catch(e){} })();
+</script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230C1722'/%3E%3Cg fill='%23B4873A'%3E%3Crect x='6' y='18' width='3.5' height='8' rx='1'/%3E%3Crect x='11.5' y='13' width='3.5' height='13' rx='1'/%3E%3Crect x='17' y='9' width='3.5' height='17' rx='1'/%3E%3Crect x='22.5' y='15' width='3.5' height='11' rx='1'/%3E%3C/g%3E%3C/svg%3E" />
 <meta name="description" content="Painel de controle orçamentário e financeiro: execução, serviço da dívida, pré-empenho, supressão e pagamentos." />
+<meta name="theme-color" content="#0C1722" />
+<!-- ARQUIVO AUTOSSUFICIENTE: Chart.js 4.4.1 (MIT), Tailwind CSS 3.4.16 (MIT), SheetJS 0.20.3
+     (Apache-2.0) e as fontes Spectral / Public Sans / IBM Plex Mono estao embutidos abaixo.
+     Sem dependencia de CDN — funciona offline, abrindo o arquivo direto do disco. -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Painel de Controle Orçamentário &amp; Financeiro" />
+<meta property="og:description" content="Execução orçamentária, serviço da dívida, pré-empenho, supressão e pagamentos — base SIAFEM/SIGEF." />
 
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -15,21 +30,18 @@
 
 <script>
   tailwind.config = {
+    darkMode: 'class',
     theme: {
       extend: {
         colors: {
-          brand: {
-            bg: '#F4F6F8',      // Fundo cinza super claro
-            panel: '#FFFFFF',   // Cards brancos
-            text: '#334155',    // Texto principal (Slate 700)
-            muted: '#94A3B8',   // Texto secundário (Slate 400)
-            border: '#E2E8F0',  // Bordas suaves (Slate 200)
-            gold: '#B4873A',    // Bronze/Dourado do botão
-            goldLight: '#FDF8F3',// Fundo dourado super claro
-            blueDark: '#2C3E50',// Azul escuro para pills ativos
-            green: '#2E7D32',
-            red: '#C62828',
-            orange: '#E65100'
+          dark: {
+            bg: '#0B0F19',
+            panel: '#1A2333',
+            border: '#2A364F'
+          },
+          bronze: {
+            500: '#C79A47',
+            600: '#B4873A'
           }
         },
         fontFamily: {
@@ -42,215 +54,744 @@
 </script>
 
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Public+Sans:wght@400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600;700&display=swap');
+
+  :root {
+      --bg-color: #f3f4f6;
+      --panel-bg: #ffffff;
+      --text-color: #1f2937;
+      --text-muted: #6b7280;
+      --border-color: #e5e7eb;
+      --highlight: #B4873A;
+      --table-header: #f9fafb;
+      --table-hover: #f3f4f6;
+  }
+
+  html.dark {
+      --bg-color: #0B0F19;
+      --panel-bg: #1A2333;
+      --text-color: #e2e8f0;
+      --text-muted: #94a3b8;
+      --border-color: #2A364F;
+      --highlight: #C79A47;
+      --table-header: #111827;
+      --table-hover: #1f2937;
+  }
 
   body {
-      background-color: #F4F6F8;
-      color: #334155;
+      background-color: var(--bg-color);
+      color: var(--text-color);
       font-family: 'Public Sans', sans-serif;
+      transition: background-color 0.3s, color 0.3s;
   }
 
   .panel {
-      background-color: #FFFFFF;
-      border: 1px solid #E2E8F0;
-      border-radius: 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+      background-color: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 0.5rem;
   }
 
   /* Custom Scrollbar */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background-color: #CBD5E1; border-radius: 10px; }
-
-  /* Pill Buttons */
-  .pill-btn {
-      padding: 0.35rem 1rem;
-      border-radius: 9999px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      transition: all 0.2s;
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
   }
-  .pill-active {
-      background-color: #B4873A;
-      color: white;
+  ::-webkit-scrollbar-track {
+    background: transparent;
   }
-  .pill-inactive {
-      background-color: white;
-      color: #64748B;
-      border: 1px solid #E2E8F0;
-  }
-  .pill-inactive:hover {
-      background-color: #F8FAFC;
-      border-color: #CBD5E1;
-  }
-  
-  /* Select simplificado estilo template */
-  .clean-select {
-      appearance: none;
-      background-color: #F8FAFC;
-      border: 1px solid #E2E8F0;
-      border-radius: 9999px;
-      padding: 0.35rem 2rem 0.35rem 1rem;
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: #64748B;
-      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364748B' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-      background-position: right 0.5rem center;
-      background-repeat: no-repeat;
-      background-size: 1.5em 1.5em;
-      outline: none;
-  }
-  .clean-select:focus {
-      border-color: #B4873A;
-      box-shadow: 0 0 0 1px #B4873A;
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--border-color);
+    border-radius: 10px;
   }
 </style>
 </head>
 
 <body class="text-sm antialiased h-screen flex flex-col overflow-hidden">
 
-  <!-- Cabeçalho (Header) idêntico ao template -->
-  <header class="mx-6 mt-6 shrink-0">
-    <div class="flex justify-between items-end mb-4">
+  <!-- Header -->
+  <header class="panel mx-4 mt-4 px-6 py-4 flex justify-between items-center shrink-0 shadow-sm">
+    <div class="flex items-center gap-4">
+      <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-gray-800 to-gray-900 dark:from-dark-bg dark:to-black flex items-center justify-center border border-gray-200 dark:border-dark-border shadow-sm">
+        <svg class="w-6 h-6 text-bronze-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+        </svg>
+      </div>
       <div>
-        <div class="flex items-center gap-2 text-[10px] text-brand-muted font-bold tracking-widest uppercase mb-1.5">
-          <span class="w-2 h-2 rounded-full bg-emerald-500"></span> SEPLAN-MA · GESTÃO DA DÍVIDA PÚBLICA
-        </div>
-        <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Painel de Controle Orçamentário & Financeiro</h1>
-        <p class="text-sm text-gray-500 mt-1">Execução, serviço da dívida, pré-empenho, supressão e pagamentos</p>
+        <h1 class="text-lg font-bold text-gray-900 dark:text-white tracking-tight">Painel de Controle Orçamentário &amp; Financeiro</h1>
+        <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">SEPLAN MA - GESTÃO DA DÍVIDA PÚBLICA</p>
       </div>
-      
-      <div class="text-right">
-        <div class="text-[10px] text-brand-muted font-bold tracking-widest uppercase mb-1">DATA DE REFERÊNCIA</div>
-        <div class="text-sm font-mono text-gray-800 mb-2 font-medium" id="data-referencia">quinta-feira, 15 de outubro de 2026</div>
-        <div class="flex items-center justify-end gap-3">
-          <div class="flex items-center gap-1.5 text-xs text-gray-400 font-mono">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Atualizado às <span id="hora-atualizacao">--:--</span>
-          </div>
-          <button onclick="sincronizarPlanilha(true)" class="flex items-center gap-2 px-4 py-1.5 text-xs font-semibold text-brand-gold bg-brand-goldLight border border-brand-gold rounded-full hover:bg-amber-50 transition-colors">
-            <i class="fas fa-sync-alt"></i> Atualizar
-          </button>
-          <button onclick="exportCSV()" class="flex items-center gap-2 px-4 py-1.5 text-xs font-semibold text-gray-600 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors">
-            CSV
-          </button>
+    </div>
+    
+    <div class="flex items-center gap-3">
+        <!-- Live Sync Status -->
+        <div id="sync-status" class="flex items-center gap-2 px-3 py-1.5 rounded-full border border-green-200 dark:border-green-900/30 bg-green-50 dark:bg-green-900/20 mr-2 transition-all">
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            </span>
+            <span class="text-xs font-bold text-green-700 dark:text-green-400 tracking-wider">LIVE SYNC</span>
         </div>
-      </div>
+
+      <button onclick="sincronizarPlanilha(true)" class="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+        <i class="fas fa-sync-alt"></i> Sincronizar
+      </button>
+      <button onclick="exportCSV()" class="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+        <i class="fas fa-download"></i> CSV
+      </button>
+      <button onclick="window.print()" class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white rounded border border-gray-300 dark:border-gray-600 transition-colors">
+        <i class="fas fa-print"></i>
+      </button>
+      <button id="theme-toggle" class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white rounded border border-gray-300 dark:border-gray-600 transition-colors">
+        <i class="fas fa-moon dark:hidden"></i>
+        <i class="fas fa-sun hidden dark:inline"></i>
+      </button>
     </div>
   </header>
 
   <!-- Filtros -->
-  <div class="mx-6 panel p-5 mb-4 shrink-0 flex flex-wrap gap-6 items-center">
-    
-    <!-- Filtro de Ano (Pills) -->
-    <div class="flex-1 min-w-[250px]">
-      <label class="block text-[10px] font-bold text-brand-muted mb-2.5 uppercase tracking-widest">EXERCÍCIO</label>
-      <div class="flex gap-2" id="filter-ano-container">
-        <button class="pill-btn pill-active" data-ano="2026" onclick="setAno('2026')">2026</button>
-        <button class="pill-btn pill-inactive" data-ano="2025" onclick="setAno('2025')">2025</button>
-        <button class="pill-btn pill-inactive" data-ano="2024" onclick="setAno('2024')">2024</button>
-        <button class="pill-btn pill-inactive" data-ano="Todos" onclick="setAno('Todos')">Todos</button>
-      </div>
+  <div class="mx-4 mt-4 p-4 panel flex flex-wrap gap-4 shrink-0 shadow-sm relative z-10">
+    <div class="flex-1 min-w-[120px]">
+      <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Ano</label>
+      <select id="filter-ano" class="w-full bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white text-sm rounded-md focus:ring-bronze-500 focus:border-bronze-500 block p-2">
+        <option value="Todos">Todos</option>
+        <option value="2026" selected>2026</option>
+        <option value="2025">2025</option>
+        <option value="2024">2024</option>
+      </select>
     </div>
-
-    <div class="w-px h-10 bg-gray-200 hidden lg:block"></div>
-
-    <!-- Filtros de Dropdown -->
-    <div class="flex-[2] min-w-[400px]">
-        <label class="block text-[10px] font-bold text-brand-muted mb-2.5 uppercase tracking-widest">MÊS E SUBAÇÃO (SELEÇÃO)</label>
-        <div class="flex gap-3">
-            <select id="filter-mes-comp" class="clean-select flex-1">
-                <option value="Todos">Competência: Todas</option>
-                <option value="Jan">Jan</option><option value="Fev">Fev</option><option value="Mar">Mar</option>
-                <option value="Abr">Abr</option><option value="Mai">Mai</option><option value="Jun">Jun</option>
-                <option value="Jul">Jul</option><option value="Ago">Ago</option><option value="Set">Set</option>
-                <option value="Out">Out</option><option value="Nov">Nov</option><option value="Dez">Dez</option>
-            </select>
-            
-            <select id="filter-mes-pag" class="clean-select flex-1">
-                <option value="Todos">Pagamento: Todos</option>
-            </select>
-            
-            <select id="filter-subacao" class="clean-select flex-1">
-                <option value="Todos">Subação: Todas</option>
-            </select>
-        </div>
+    <div class="flex-1 min-w-[140px]">
+      <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Mês Competência</label>
+      <select id="filter-mes-comp" class="w-full bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white text-sm rounded-md focus:ring-bronze-500 focus:border-bronze-500 block p-2">
+        <option value="Todos">Todos</option>
+        <option value="Jan">Janeiro</option>
+        <option value="Fev">Fevereiro</option>
+        <option value="Mar">Março</option>
+        <option value="Abr">Abril</option>
+        <option value="Mai">Maio</option>
+        <option value="Jun">Junho</option>
+        <option value="Jul">Julho</option>
+        <option value="Ago">Agosto</option>
+        <option value="Set">Setembro</option>
+        <option value="Out">Outubro</option>
+        <option value="Nov">Novembro</option>
+        <option value="Dez">Dezembro</option>
+      </select>
     </div>
-
-    <!-- Busca -->
-    <div class="flex-1 min-w-[200px]">
-        <div class="relative mt-6">
-            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs"></i>
-            <input type="text" id="filter-busca" placeholder="Buscar credor, NE..." class="w-full pl-8 pr-4 py-1.5 bg-gray-50 border border-gray-200 text-gray-700 text-xs rounded-full focus:ring-1 focus:ring-brand-gold focus:border-brand-gold outline-none transition-all">
-        </div>
+    <div class="flex-1 min-w-[140px]">
+      <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Mês Pagamento</label>
+      <select id="filter-mes-pag" class="w-full bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white text-sm rounded-md focus:ring-bronze-500 focus:border-bronze-500 block p-2">
+        <option value="Todos">Todos</option>
+        <!-- Options preenchidas pelo JS -->
+      </select>
+    </div>
+    <div class="flex-1 min-w-[140px]">
+      <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Subação</label>
+      <select id="filter-subacao" class="w-full bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white text-sm rounded-md focus:ring-bronze-500 focus:border-bronze-500 block p-2">
+        <option value="Todos">Todas</option>
+      </select>
+    </div>
+    <div class="flex-[2] min-w-[200px]">
+      <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Busca Livre (NE, Credor)</label>
+      <input type="text" id="filter-busca" placeholder="Filtrar por Nota de Empenho, Credor..." class="w-full bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-900 dark:text-white text-sm rounded-md focus:ring-bronze-500 focus:border-bronze-500 block p-2">
     </div>
   </div>
 
-  <!-- Abas Estilo Template -->
-  <div class="mx-6 border-b border-gray-200 shrink-0 mb-4">
+  <!-- Abas de Navegação -->
+  <div class="mx-4 mt-4 border-b border-gray-200 dark:border-dark-border shrink-0 relative z-0">
       <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-        <button onclick="switchTab('visao-geral')" id="tab-visao-geral" class="border-brand-gold text-gray-900 font-bold whitespace-nowrap py-3 px-1 border-b-2 text-sm transition-colors">
+        <button onclick="switchTab('visao-geral')" id="tab-visao-geral" class="tab-btn border-bronze-500 text-bronze-600 dark:text-bronze-500 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
           Visão Geral
         </button>
-        <button onclick="switchTab('encargos')" id="tab-encargos" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium whitespace-nowrap py-3 px-1 border-b-2 text-sm transition-colors">
+        <button onclick="switchTab('encargos')" id="tab-encargos" class="tab-btn border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
           Encargos Financeiros
         </button>
-        <button onclick="switchTab('divida')" id="tab-divida" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium whitespace-nowrap py-3 px-1 border-b-2 text-sm transition-colors">
+        <button onclick="switchTab('divida')" id="tab-divida" class="tab-btn border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
           Dívida do Estado
         </button>
-        <button onclick="switchTab('projecoes')" id="tab-projecoes" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium whitespace-nowrap py-3 px-1 border-b-2 text-sm transition-colors">
+        <button onclick="switchTab('projecoes')" id="tab-projecoes" class="tab-btn border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
           Projeções
         </button>
       </nav>
   </div>
 
   <!-- Conteúdo Principal Scrollável -->
-  <main class="flex-1 overflow-y-auto px-6 pb-6 space-y-5">
+  <main class="flex-1 overflow-y-auto p-4 space-y-4">
     
     <!-- Tab: Visão Geral -->
-    <div id="content-visao-geral" class="block space-y-5">
-        
-        <!-- KPIs idênticos à imagem -->
+    <div id="content-visao-geral" class="tab-content block space-y-4">
+        <!-- KPIs -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            
-            <!-- KPI 1: Gráfico de Rosca -->
-            <div class="panel p-5 flex items-center gap-4">
-                <div class="w-20 h-20 relative">
-                    <canvas id="kpiDoughnut"></canvas>
-                    <div class="absolute inset-0 flex items-center justify-center font-bold text-gray-800 text-sm font-mono" id="pct-pago-center">0%</div>
-                </div>
-                <div class="flex-1">
-                    <div class="text-[10px] text-brand-muted font-bold uppercase tracking-widest mb-1">EXECUÇÃO NO PERÍODO</div>
-                    <div class="text-sm font-mono text-gray-800"><span id="txt-pago-kpi" class="font-bold">0</span> pagos</div>
-                    <div class="text-xs text-gray-500 mt-0.5">de <span id="txt-emp-kpi">0</span> empenhados</div>
-                </div>
+            <div class="panel p-5 shadow-sm">
+                <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Orçamento Atualizado</h3>
+                <div class="text-2xl font-bold text-gray-900 dark:text-white" id="kpi-orcamento">R$ 0,00</div>
+                <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">Base SIAFEM/SIGEF</div>
             </div>
-
-            <!-- KPI 2: Orçamento -->
-            <div class="panel p-5 flex flex-col justify-center">
-                <div class="text-[10px] text-brand-muted font-bold uppercase tracking-widest mb-2">ORÇAMENTO ATUALIZADO</div>
-                <div class="text-3xl font-bold text-brand-green font-mono mb-1 tracking-tight" id="kpi-orcamento">0</div>
-                <div class="text-xs text-gray-500">Base SIAFEM/SIGEF</div>
+            <div class="panel p-5 shadow-sm border-t-2 border-t-bronze-500">
+                <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Empenhado</h3>
+                <div class="text-2xl font-bold text-gray-900 dark:text-white" id="kpi-empenhado">R$ 0,00</div>
+                <div class="mt-2 text-xs text-gray-500 dark:text-gray-400"><span id="pct-empenhado" class="font-bold text-bronze-600 dark:text-bronze-500">0%</span> do orçamento</div>
             </div>
-
-            <!-- KPI 3: Empenhado -->
-            <div class="panel p-5 flex flex-col justify-center">
-                <div class="text-[10px] text-brand-muted font-bold uppercase tracking-widest mb-2">EMPENHADO (COMPROMETIDO)</div>
-                <div class="text-3xl font-bold text-brand-orange font-mono mb-1 tracking-tight" id="kpi-empenhado">0</div>
-                <div class="text-xs text-gray-500"><span id="pct-empenhado" class="font-bold text-gray-700">0%</span> do orçamento</div>
+            <div class="panel p-5 shadow-sm border-t-2 border-t-green-500">
+                <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Pago</h3>
+                <div class="text-2xl font-bold text-gray-900 dark:text-white" id="kpi-pago">R$ 0,00</div>
+                <div class="mt-2 text-xs text-gray-500 dark:text-gray-400"><span id="pct-pago" class="font-bold text-green-600 dark:text-green-500">0%</span> do empenhado</div>
             </div>
-
-            <!-- KPI 4: Supressões / Posição -->
-            <div class="panel p-5 flex flex-col justify-center">
-                <div class="text-[10px] text-brand-muted font-bold uppercase tracking-widest mb-2">SUPRESSÕES E CANCELAMENTOS</div>
-                <div class="text-3xl font-bold text-brand-gold font-mono mb-1 tracking-tight" id="kpi-supressao">0</div>
-                <div class="text-xs text-gray-500">Valores anulados no período</div>
+            <div class="panel p-5 shadow-sm border-t-2 border-t-red-500">
+                <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Supressões</h3>
+                <div class="text-2xl font-bold text-gray-900 dark:text-white" id="kpi-supressao">R$ 0,00</div>
+                <div class="mt-2 text-xs text-red-600 dark:text-red-400 font-medium">Valores cancelados/anulados</div>
             </div>
-
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 h-[400px]">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[400px]">
             <!-- Tabela Execução -->
-            <div class="panel lg:col-span-2 flex flex-col overflow-hidden">
-                <div class="px-6 py-4 flex justify-between items-center">
-                    <h2 class="text-sm font-bold text-gray-800">
-                        <span class="border border-brand-gold text-brand-gold rounded
+            <div class="panel lg:col-span-2 flex flex-col shadow-sm overflow-hidden">
+                <div class="px-5 py-4 border-b border-gray-200 dark:border-dark-border flex justify-between items-center bg-gray-50/50 dark:bg-transparent">
+                    <h2 class="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-wide uppercase">Detalhamento da Execução</h2>
+                    <span class="text-xs text-gray-500 dark:text-gray-400 font-mono"><span id="count-execucao">0</span> registros</span>
+                </div>
+                <div class="flex-1 overflow-auto">
+                    <table class="w-full text-left border-collapse whitespace-nowrap">
+                        <thead class="sticky top-0 bg-gray-100 dark:bg-[#111827] shadow-sm z-10">
+                            <tr>
+                                <th class="py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Subação</th>
+                                <th class="py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Nota Empenho</th>
+                                <th class="py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Credor</th>
+                                <th class="py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider text-right">Empenhado (R$)</th>
+                                <th class="py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider text-right">Pago (R$)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-execucao" class="divide-y divide-gray-200 dark:divide-dark-border">
+                            <!-- JS fill -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Gráfico de Rosca -->
+            <div class="panel flex flex-col shadow-sm">
+                <div class="px-5 py-4 border-b border-gray-200 dark:border-dark-border bg-gray-50/50 dark:bg-transparent">
+                    <h2 class="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-wide uppercase">Status da Execução</h2>
+                </div>
+                <div class="flex-1 p-4 relative min-h-[300px] flex items-center justify-center">
+                    <canvas id="chartExecucao"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab: Encargos -->
+    <div id="content-encargos" class="tab-content hidden space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="panel p-5 shadow-sm">
+                <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Total de Encargos Pagos</h3>
+                <div class="text-2xl font-bold text-gray-900 dark:text-white" id="kpi-encargos-pagos">R$ 0,00</div>
+            </div>
+            <div class="panel p-5 shadow-sm">
+                <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Juros (Previsão vs Realizado)</h3>
+                <div class="text-2xl font-bold text-gray-900 dark:text-white" id="kpi-juros">R$ 0,00</div>
+            </div>
+            <div class="panel p-5 shadow-sm">
+                <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Variação Cambial</h3>
+                <div class="text-2xl font-bold text-gray-900 dark:text-white" id="kpi-cambial">R$ 0,00</div>
+            </div>
+        </div>
+        <div class="panel p-5 shadow-sm h-[400px] flex flex-col">
+            <h2 class="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-wide uppercase mb-4">Evolução Mensal de Encargos Financeiros</h2>
+            <div class="flex-1 relative">
+                <canvas id="chartEncargos"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab: Dívida -->
+    <div id="content-divida" class="tab-content hidden space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="panel p-5 shadow-sm">
+                <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Estoque da Dívida Consolidada</h3>
+                <div class="text-2xl font-bold text-gray-900 dark:text-white" id="kpi-estoque">R$ 0,00</div>
+            </div>
+            <div class="panel p-5 shadow-sm">
+                <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Receita Corrente Líquida (RCL)</h3>
+                <div class="text-2xl font-bold text-gray-900 dark:text-white" id="kpi-rcl">R$ 0,00</div>
+            </div>
+            <div class="panel p-5 shadow-sm border-t-2 border-t-bronze-500">
+                <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">DC / RCL</h3>
+                <div class="text-2xl font-bold text-bronze-600 dark:text-bronze-500" id="kpi-dc-rcl">0,00%</div>
+                <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">Limite LRF: 200%</div>
+            </div>
+            <div class="panel p-5 shadow-sm">
+                <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">DCL / RCL</h3>
+                <div class="text-2xl font-bold text-gray-900 dark:text-white" id="kpi-dcl-rcl">0,00%</div>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 h-[400px]">
+            <div class="panel p-5 shadow-sm flex flex-col">
+                <h2 class="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-wide uppercase mb-4">Serviço da Dívida por Subação</h2>
+                <div class="flex-1 relative">
+                    <canvas id="chartServicoDiv"></canvas>
+                </div>
+            </div>
+            <div class="panel p-5 shadow-sm flex flex-col">
+                <h2 class="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-wide uppercase mb-4">Estoque: Interna vs Externa</h2>
+                <div class="flex-1 relative flex items-center justify-center">
+                    <canvas id="chartTipoDivida"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab: Projeções -->
+    <div id="content-projecoes" class="tab-content hidden space-y-4">
+        <div class="panel p-5 shadow-sm border-l-4 border-l-bronze-500 bg-bronze-50 dark:bg-bronze-900/10">
+            <h3 class="text-sm font-bold text-bronze-800 dark:text-bronze-400 mb-2"><i class="fas fa-exclamation-triangle mr-2"></i>Análise de Necessidade Orçamentária</h3>
+            <p class="text-sm text-gray-700 dark:text-gray-300">As projeções indicam <span id="txt-projecao-status" class="font-bold">orçamento suficiente</span> para cobrir os encargos até o final do exercício corrente com base na média de execução mensal.</p>
+        </div>
+        <div class="panel p-5 shadow-sm h-[400px] flex flex-col">
+            <h2 class="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-wide uppercase mb-4">Projeção de Encargos vs Orçamento Disponível</h2>
+            <div class="flex-1 relative">
+                <canvas id="chartProjecoes"></canvas>
+            </div>
+        </div>
+    </div>
+
+  </main>
+
+  <script>
+    // Configurações do Tema
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    themeToggleBtn.addEventListener('click', () => {
+      document.documentElement.classList.toggle('dark');
+      const isDark = document.documentElement.classList.contains('dark');
+      localStorage.setItem('painel-tema', isDark ? 'escuro' : 'claro');
+      updateChartsTheme();
+    });
+
+    // Variáveis Globais de Dados
+    let rawData = [];
+    let filteredData = [];
+    let charts = {};
+
+    // URL DO ARQUIVO EXCEL NO GITHUB (Link RAW)
+    // EXXEMPLO: "https://raw.githubusercontent.com/SEU_USUARIO/SEU_REPOSITORIO/main/REL%20ORC_FINANCEIRO%20(WebApp).xlsm"
+    const URL_PLANILHA_GITHUB = "https://raw.githubusercontent.com/jokclub/estoque-divida/main/REL_ORC_FINANCEIRO_WebApp.xlsm"; 
+    const INTERVALO_SYNC_MS = 60000; // 1 minuto
+
+    // Formatação de Moeda
+    const fmtCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
+    const fmtPct = (val) => new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: 2 }).format(val || 0);
+
+    // Navegação de Abas
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('border-bronze-500', 'text-bronze-600', 'dark:text-bronze-500');
+            btn.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+        });
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.add('hidden');
+            content.classList.remove('block');
+        });
+
+        const activeBtn = document.getElementById(`tab-${tabId}`);
+        activeBtn.classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+        activeBtn.classList.add('border-bronze-500', 'text-bronze-600', 'dark:text-bronze-500');
+        
+        const activeContent = document.getElementById(`content-${tabId}`);
+        activeContent.classList.remove('hidden');
+        activeContent.classList.add('block');
+    }
+
+    // Inicializa Gráficos (Vazios)
+    function initCharts() {
+        Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+        Chart.defaults.color = document.documentElement.classList.contains('dark') ? '#94a3b8' : '#6b7280';
+        
+        const gridColor = document.documentElement.classList.contains('dark') ? '#2A364F' : '#e5e7eb';
+        const tooltipBg = document.documentElement.classList.contains('dark') ? '#0B0F19' : '#ffffff';
+        const tooltipText = document.documentElement.classList.contains('dark') ? '#ffffff' : '#1f2937';
+
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } },
+                tooltip: { backgroundColor: tooltipBg, titleColor: tooltipText, bodyColor: tooltipText, borderColor: gridColor, borderWidth: 1 }
+            },
+            scales: {
+                y: { grid: { color: gridColor }, beginAtZero: true, ticks: { callback: (val) => 'R$ ' + (val/1e6).toFixed(1) + 'M' } },
+                x: { grid: { display: false } }
+            }
+        };
+
+        const ctxExec = document.getElementById('chartExecucao').getContext('2d');
+        charts.execucao = new Chart(ctxExec, {
+            type: 'doughnut',
+            data: { labels: ['Pago', 'Empenhado (Pendente)', 'Saldo Orçamento'], datasets: [{ data: [0,0,0], backgroundColor: ['#10b981', '#f59e0b', '#3b82f6'], borderWidth: 0, cutout: '75%' }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true } } } }
+        });
+
+        const ctxEnc = document.getElementById('chartEncargos').getContext('2d');
+        charts.encargos = new Chart(ctxEnc, {
+            type: 'bar',
+            data: { labels: [], datasets: [] },
+            options: commonOptions
+        });
+
+        const ctxServico = document.getElementById('chartServicoDiv').getContext('2d');
+        charts.servico = new Chart(ctxServico, {
+            type: 'bar',
+            data: { labels: [], datasets: [] },
+            options: { ...commonOptions, indexAxis: 'y', scales: { x: { grid: { color: gridColor }, beginAtZero: true }, y: { grid: { display: false } } } }
+        });
+
+        const ctxTipo = document.getElementById('chartTipoDivida').getContext('2d');
+        charts.tipoDivida = new Chart(ctxTipo, {
+            type: 'pie',
+            data: { labels: ['Interna', 'Externa'], datasets: [{ data: [0,0], backgroundColor: ['#3b82f6', '#f59e0b'], borderWidth: 0 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true } } } }
+        });
+
+        const ctxProj = document.getElementById('chartProjecoes').getContext('2d');
+        charts.projecoes = new Chart(ctxProj, {
+            type: 'line',
+            data: { labels: [], datasets: [] },
+            options: { ...commonOptions, elements: { line: { tension: 0.4 } } }
+        });
+    }
+
+    function updateChartsTheme() {
+        const isDark = document.documentElement.classList.contains('dark');
+        const textColor = isDark ? '#94a3b8' : '#6b7280';
+        const gridColor = isDark ? '#2A364F' : '#e5e7eb';
+        const tooltipBg = isDark ? '#0B0F19' : '#ffffff';
+        const tooltipText = isDark ? '#ffffff' : '#1f2937';
+
+        Chart.defaults.color = textColor;
+        Object.values(charts).forEach(chart => {
+            if(chart.options.scales && chart.options.scales.y) chart.options.scales.y.grid.color = gridColor;
+            if(chart.options.scales && chart.options.scales.x && chart.config.type === 'bar' && chart.options.indexAxis === 'y') chart.options.scales.x.grid.color = gridColor;
+            if(chart.options.plugins.tooltip) {
+                chart.options.plugins.tooltip.backgroundColor = tooltipBg;
+                chart.options.plugins.tooltip.titleColor = tooltipText;
+                chart.options.plugins.tooltip.bodyColor = tooltipText;
+                chart.options.plugins.tooltip.borderColor = gridColor;
+            }
+            chart.update();
+        });
+    }
+
+    // Leitura e Sincronização do Excel do GitHub
+    async function sincronizarPlanilha(isManual = false) {
+        if(!URL_PLANILHA_GITHUB || URL_PLANILHA_GITHUB.trim() === "") {
+            console.log("URL do GitHub não configurada. Gerando dados de teste (Mock)...");
+            gerarMockData();
+            processData();
+            return;
+        }
+
+        const syncIcon = document.querySelector('.fa-sync-alt');
+        if(isManual) syncIcon.classList.add('fa-spin');
+
+        try {
+            // Adiciona timestamp para evitar cache
+            const response = await fetch(`${URL_PLANILHA_GITHUB}?t=${new Date().getTime()}`);
+            if(!response.ok) throw new Error("Erro ao baixar planilha do GitHub");
+            
+            const arrayBuffer = await response.arrayBuffer();
+            const workbook = XLSX.read(arrayBuffer, {type: 'array'});
+            
+            // Assume que a aba principal se chama 'Execução' ou pega a primeira
+            const sheetName = workbook.SheetNames[0]; 
+            const worksheet = workbook.Sheets[sheetName];
+            const json = XLSX.utils.sheet_to_json(worksheet);
+
+            // Padroniza as chaves do JSON para o que o script espera
+            rawData = json.map(row => ({
+                ano: row['Ano'] || row['Exercicio'] || 2026,
+                mesComp: row['Mês Competência'] || row['Mes_Comp'] || 'Jan',
+                mesPag: row['Mês Pagamento'] || row['Mes_Pag'] || 'Jan',
+                subacao: row['Subação'] || row['Subacao'] || 'Sem Subação',
+                ne: row['NE'] || row['Nota de Empenho'] || '-',
+                credor: row['Credor'] || 'Não Informado',
+                orcamento: parseFloat(row['Orçamento'] || row['Orcamento']) || 0,
+                empenhado: parseFloat(row['Empenhado']) || 0,
+                pago: parseFloat(row['Pago']) || 0,
+                supressao: parseFloat(row['Supressão'] || row['Supressao']) || 0,
+                encargos: parseFloat(row['Encargos']) || 0,
+                juros: parseFloat(row['Juros']) || 0,
+                tipo_divida: row['Tipo Dívida'] || 'Interna',
+                estoque: parseFloat(row['Estoque']) || 0
+            }));
+
+            popularFiltros();
+            processData();
+            if(isManual) alert("Planilha sincronizada com sucesso a partir do GitHub!");
+
+        } catch (error) {
+            console.error("Erro na sincronização:", error);
+            if(isManual) alert("Falha ao sincronizar. Verifique o console e a URL fornecida.");
+            // Fallback para mock se falhar
+            if(rawData.length === 0) {
+                gerarMockData();
+                processData();
+            }
+        } finally {
+            if(isManual) syncIcon.classList.remove('fa-spin');
+        }
+    }
+
+    function iniciarAutoSync() {
+        setInterval(() => {
+            console.log("Auto-syncing...");
+            sincronizarPlanilha(false);
+        }, INTERVALO_SYNC_MS);
+    }
+
+    // Gerador de Dados Fictícios (Mock) - Fallback
+    function gerarMockData() {
+        const anos = [2024, 2025, 2026];
+        const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+        const subacoes = ['Amortização da Dívida Interna', 'Pagamento de Juros Internos', 'Encargos Externos', 'Precatórios'];
+        const credores = ['Banco do Brasil', 'Caixa Econômica', 'BNDES', 'BID', 'BIRD'];
+        
+        rawData = [];
+        
+        for(let i=0; i<500; i++) {
+            const ano = anos[Math.floor(Math.random() * anos.length)];
+            const mesIdx = Math.floor(Math.random() * 12);
+            const orc = Math.random() * 5000000 + 1000000;
+            const emp = orc * (Math.random() * 0.9 + 0.1);
+            const pag = emp * (Math.random() * 0.9 + 0.1);
+            const tipo = Math.random() > 0.8 ? 'Externa' : 'Interna';
+
+            rawData.push({
+                ano: ano,
+                mesComp: meses[mesIdx],
+                mesPag: meses[mesIdx >= 11 ? 11 : mesIdx + Math.floor(Math.random() * 2)],
+                subacao: subacoes[Math.floor(Math.random() * subacoes.length)],
+                ne: '2026NE' + String(Math.floor(Math.random() * 90000) + 10000),
+                credor: credores[Math.floor(Math.random() * credores.length)],
+                orcamento: orc,
+                empenhado: emp,
+                pago: pag,
+                supressao: Math.random() > 0.8 ? emp * 0.1 : 0,
+                encargos: pag * 0.15,
+                juros: pag * 0.10,
+                tipo_divida: tipo,
+                estoque: orc * 10
+            });
+        }
+        popularFiltros();
+    }
+
+    function popularFiltros() {
+        const subacoes = [...new Set(rawData.map(d => d.subacao))].sort();
+        const selSub = document.getElementById('filter-subacao');
+        selSub.innerHTML = '<option value="Todos">Todas</option>';
+        subacoes.forEach(s => selSub.insertAdjacentHTML('beforeend', `<option value="${s}">${s}</option>`));
+
+        const meses = [...new Set(rawData.map(d => d.mesPag))].sort();
+        const selMes = document.getElementById('filter-mes-pag');
+        selMes.innerHTML = '<option value="Todos">Todos</option>';
+        meses.forEach(m => selMes.insertAdjacentHTML('beforeend', `<option value="${m}">${m}</option>`));
+    }
+
+    function processData() {
+        const ano = document.getElementById('filter-ano').value;
+        const mesComp = document.getElementById('filter-mes-comp').value;
+        const mesPag = document.getElementById('filter-mes-pag').value;
+        const subacao = document.getElementById('filter-subacao').value;
+        const busca = document.getElementById('filter-busca').value.toLowerCase();
+
+        filteredData = rawData.filter(d => {
+            const mAno = ano === 'Todos' || d.ano.toString() === ano;
+            const mMesC = mesComp === 'Todos' || d.mesComp === mesComp;
+            const mMesP = mesPag === 'Todos' || d.mesPag === mesPag;
+            const mSub = subacao === 'Todos' || d.subacao === subacao;
+            const mBusca = busca === '' || d.ne.toLowerCase().includes(busca) || d.credor.toLowerCase().includes(busca);
+            return mAno && mMesC && mMesP && mSub && mBusca;
+        });
+
+        updateVisaoGeral();
+        updateEncargos();
+        updateDivida();
+        updateProjecoes();
+    }
+
+    function updateVisaoGeral() {
+        const totOrc = filteredData.reduce((acc, val) => acc + val.orcamento, 0);
+        const totEmp = filteredData.reduce((acc, val) => acc + val.empenhado, 0);
+        const totPago = filteredData.reduce((acc, val) => acc + val.pago, 0);
+        const totSup = filteredData.reduce((acc, val) => acc + val.supressao, 0);
+
+        document.getElementById('kpi-orcamento').innerText = fmtCurrency(totOrc);
+        document.getElementById('kpi-empenhado').innerText = fmtCurrency(totEmp);
+        document.getElementById('kpi-pago').innerText = fmtCurrency(totPago);
+        document.getElementById('kpi-supressao').innerText = fmtCurrency(totSup);
+
+        document.getElementById('pct-empenhado').innerText = fmtPct(totOrc > 0 ? totEmp / totOrc : 0);
+        document.getElementById('pct-pago').innerText = fmtPct(totEmp > 0 ? totPago / totEmp : 0);
+
+        // Tabela
+        const tbody = document.getElementById('tbody-execucao');
+        tbody.innerHTML = '';
+        const displayData = filteredData.slice(0, 100); // Limita a 100 para performance
+        document.getElementById('count-execucao').innerText = filteredData.length;
+
+        displayData.forEach(d => {
+            tbody.insertAdjacentHTML('beforeend', `
+                <tr class="hover:bg-table-hover transition-colors border-b border-gray-100 dark:border-dark-border/50">
+                    <td class="py-2.5 px-4 text-xs text-gray-700 dark:text-slate-300 font-medium">${d.subacao}</td>
+                    <td class="py-2.5 px-4 text-xs text-gray-600 dark:text-slate-400 font-mono">${d.ne}</td>
+                    <td class="py-2.5 px-4 text-xs text-gray-700 dark:text-slate-300">${d.credor}</td>
+                    <td class="py-2.5 px-4 text-xs text-gray-900 dark:text-slate-200 text-right font-mono">${fmtCurrency(d.empenhado)}</td>
+                    <td class="py-2.5 px-4 text-xs text-green-600 dark:text-green-400 text-right font-mono font-medium">${fmtCurrency(d.pago)}</td>
+                </tr>
+            `);
+        });
+
+        // Chart
+        const saldoOrc = totOrc - totEmp;
+        charts.execucao.data.datasets[0].data = [totPago, totEmp - totPago, saldoOrc > 0 ? saldoOrc : 0];
+        charts.execucao.update();
+    }
+
+    function updateEncargos() {
+        const totEnc = filteredData.reduce((acc, val) => acc + val.encargos, 0);
+        const totJur = filteredData.reduce((acc, val) => acc + val.juros, 0);
+        
+        document.getElementById('kpi-encargos-pagos').innerText = fmtCurrency(totEnc);
+        document.getElementById('kpi-juros').innerText = fmtCurrency(totJur);
+        document.getElementById('kpi-cambial').innerText = fmtCurrency(totEnc * 0.05); // Simulação
+
+        // Agrupar por mês
+        const mesesOrder = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+        const grouped = {};
+        mesesOrder.forEach(m => grouped[m] = 0);
+        
+        filteredData.forEach(d => {
+            if(grouped[d.mesComp] !== undefined) grouped[d.mesComp] += d.encargos;
+        });
+
+        charts.encargos.data.labels = mesesOrder;
+        charts.encargos.data.datasets = [{
+            label: 'Encargos Pagos',
+            data: mesesOrder.map(m => grouped[m]),
+            backgroundColor: '#B4873A',
+            borderRadius: 4
+        }];
+        charts.encargos.update();
+    }
+
+    function updateDivida() {
+        const totEstoque = filteredData.reduce((acc, val) => acc + val.estoque, 0);
+        const rclMock = 25000000000; // 25 Bi
+        
+        document.getElementById('kpi-estoque').innerText = fmtCurrency(totEstoque);
+        document.getElementById('kpi-rcl').innerText = fmtCurrency(rclMock);
+        document.getElementById('kpi-dc-rcl').innerText = fmtPct(totEstoque / rclMock);
+        document.getElementById('kpi-dcl-rcl').innerText = fmtPct((totEstoque * 0.9) / rclMock); // DCL simulação
+
+        // Chart Servico (Subacao)
+        const subMap = {};
+        filteredData.forEach(d => {
+            subMap[d.subacao] = (subMap[d.subacao] || 0) + d.pago;
+        });
+        const subLabels = Object.keys(subMap).slice(0,5);
+        const subData = subLabels.map(k => subMap[k]);
+
+        charts.servico.data.labels = subLabels;
+        charts.servico.data.datasets = [{
+            label: 'Serviço Pago',
+            data: subData,
+            backgroundColor: '#3b82f6',
+            borderRadius: 4
+        }];
+        charts.servico.update();
+
+        // Chart Tipo
+        const tipoMap = { 'Interna': 0, 'Externa': 0 };
+        filteredData.forEach(d => {
+            if(tipoMap[d.tipo_divida] !== undefined) tipoMap[d.tipo_divida] += d.estoque;
+        });
+        charts.tipoDivida.data.datasets[0].data = [tipoMap['Interna'], tipoMap['Externa']];
+        charts.tipoDivida.update();
+    }
+
+    function updateProjecoes() {
+        const mesesOrder = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+        const realizado = [];
+        const orcamentoLinha = [];
+        
+        let acumRealizado = 0;
+        let totOrc = filteredData.reduce((acc, val) => acc + val.orcamento, 0);
+        let mediaMensal = totOrc / 12;
+
+        mesesOrder.forEach((m, idx) => {
+            // Simulando meses passados e futuros baseado no mes atual de filtro ou geral
+            if(idx < 8) { // Supor que estamos em Agosto
+                let mesVal = filteredData.filter(d => d.mesComp === m).reduce((a,b) => a + b.pago, 0);
+                acumRealizado += mesVal;
+                realizado.push(acumRealizado);
+            } else {
+                acumRealizado += mediaMensal * 0.8; // projeção
+                realizado.push(acumRealizado);
+            }
+            orcamentoLinha.push(totOrc);
+        });
+
+        charts.projecoes.data.labels = mesesOrder;
+        charts.projecoes.data.datasets = [
+            {
+                label: 'Execução Acumulada (Realizado + Projetado)',
+                data: realizado,
+                borderColor: '#B4873A',
+                backgroundColor: 'rgba(180, 135, 58, 0.1)',
+                fill: true
+            },
+            {
+                label: 'Orçamento Total',
+                data: orcamentoLinha,
+                borderColor: '#64748b',
+                borderDash: [5, 5],
+                pointRadius: 0,
+                fill: false
+            }
+        ];
+        charts.projecoes.update();
+
+        const statusText = document.getElementById('txt-projecao-status');
+        if(realizado[11] > totOrc) {
+            statusText.innerText = "DÉFICIT ORÇAMENTÁRIO (Risco de Insuficiência)";
+            statusText.className = "font-bold text-red-600 dark:text-red-500";
+        } else {
+            statusText.innerText = "ORÇAMENTO SUFICIENTE (Excedente Previsto)";
+            statusText.className = "font-bold text-green-600 dark:text-green-500";
+        }
+    }
+
+    // Export CSV
+    function exportCSV() {
+        if(filteredData.length === 0) return alert("Não há dados para exportar.");
+        const ws = XLSX.utils.json_to_sheet(filteredData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Dados");
+        XLSX.writeFile(wb, "relatorio_orcamentario_divida.csv");
+    }
+
+    // Event Listeners dos Filtros
+    document.querySelectorAll('select, input').forEach(el => {
+        el.addEventListener('change', processData);
+        if(el.type === 'text') el.addEventListener('keyup', processData);
+    });
+
+    // Boot
+    window.onload = () => {
+        initCharts();
+        sincronizarPlanilha(false); // Inicia carregando (Github ou Mock)
+        iniciarAutoSync(); // Inicia o relógio invisível
+    };
+
+  </script>
+</body>
+</html>
